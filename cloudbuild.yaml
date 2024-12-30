@@ -4,49 +4,40 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/meditrack-healthsync/meditrack-microservices:$BUILD_ID'  # Image name uses the project name 'meditrack-microservices'
-      - '.'  # The Dockerfile is in the current directory (~/meditrack-microservices)
-    id: 'Build Docker Image'
-    timeout: '1200s'  # Timeout set to 20 minutes for the Docker build
+      - 'gcr.io/meditrack-healthsync/patient-record-service:latest'
+      - '.'
 
   # Step 2: Push Docker Image to GCR
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/meditrack-healthsync/meditrack-microservices:$BUILD_ID'  # Same tag as in the build step
-    id: 'Push Docker Image to GCR'
+      - 'gcr.io/meditrack-healthsync/patient-record-service:latest'
 
-  # Step 3: Run Python Tests
+  # Step 3: Run Tests (if applicable)
   - name: 'python'
     entrypoint: 'pytest'
-    args:
-      - './tests'  # Run tests from the 'tests' directory
-    id: 'Run Tests'
-    timeout: '900s'  # Timeout set to 15 minutes for tests
+    args: ['./tests']
 
-  # Step 4: Deploy to Kubernetes (Deployment)
+  # Step 4: Deploy to Kubernetes
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
       - 'apply'
       - '-f'
       - 'deployment.yaml'
-    id: 'Deploy to Kubernetes (Deployment)'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
-  # Step 5: Deploy to Kubernetes (Service)
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
       - 'apply'
       - '-f'
       - 'service.yaml'
-    id: 'Deploy to Kubernetes (Service)'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
-  # Step 6: Notify Success
+  # Step 5: Notify Success (optional)
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'pubsub'
@@ -55,11 +46,3 @@ steps:
       - 'ci-cd-status'
       - '--message'
       - 'CI/CD pipeline completed successfully.'
-    id: 'Notify Success'
-
-# Optional: Set a logs bucket for Cloud Build logs
-options:
-  logging: CLOUD_LOGGING_ONLY
-
-# Optional: Set the build timeout for the whole process (this is the maximum time Cloud Build will wait for the build to complete)
-timeout: '3600s'  # Timeout set to 60 minutes
