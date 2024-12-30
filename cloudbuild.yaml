@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   # Step 1: Build Docker Image
   - name: 'gcr.io/cloud-builders/docker'
@@ -46,4 +49,3 @@ steps:
       - 'ci-cd-status'
       - '--message'
       - 'CI/CD pipeline completed successfully.'
-
