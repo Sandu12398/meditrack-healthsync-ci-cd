@@ -1,5 +1,5 @@
 options:
-  logsBucket: gs://meditrack-healthsync-cloudbuild-logs  # Specify your bucket
+  logging: CLOUD_LOGGING_ONLY  # Use Cloud Logging only
 
 steps:
   # Step 1: Build Docker Image
