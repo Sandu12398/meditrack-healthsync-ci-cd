@@ -1,27 +1,38 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
+# Cloud Build Configuration
 
+# Step 1: Set up Docker Authentication
+# This ensures Cloud Build is authenticated with GCR
 steps:
-  # Step 1: Build Docker Image
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'auth'
+      - 'configure-docker'
+    id: 'Authenticate Docker'
+
+  # Step 2: Build Docker Image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
       - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
       - '.'
+    id: 'Build Docker Image'
+    timeout: '1200s'  # Timeout set to 20 minutes in case of large images
 
-  # Step 2: Push Docker Image to GCR
+  # Step 3: Push Docker Image to GCR
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
+    id: 'Push Docker Image to GCR'
 
-  # Step 3: Deploy Updates to Kubernetes
+  # Step 4: Deploy Updates to Kubernetes
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
       - 'apply'
       - '-f'
       - 'deployment.yaml'
+    id: 'Deploy to Kubernetes (Deployment)'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
@@ -31,16 +42,20 @@ steps:
       - 'apply'
       - '-f'
       - 'service.yaml'
+    id: 'Deploy to Kubernetes (Service)'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
-  # Step 4: Run Integration Tests
+  # Step 5: Run Integration Tests
   - name: 'python'
     entrypoint: 'pytest'
-    args: ['./tests']
+    args:
+      - './tests'
+    id: 'Run Integration Tests'
+    timeout: '900s'  # Timeout set to 15 minutes for tests
 
-  # Step 5: Notify Success
+  # Step 6: Notify Success
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'pubsub'
@@ -49,3 +64,12 @@ steps:
       - 'ci-cd-status'
       - '--message'
       - 'CI/CD pipeline completed successfully.'
+    id: 'Notify Success'
+  
+# Optional: Set a logs bucket for Cloud Build logs
+# This will ensure that build logs are stored in a bucket for easier access and troubleshooting
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Optional: Set the build timeout for the whole process (this is the maximum time Cloud Build will wait for the build to complete)
+timeout: '3600s'  # Timeout set to 60 minutes
