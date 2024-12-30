@@ -1,38 +1,49 @@
 steps:
-# Step 1: Build Docker Image
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/meditrack-healthsync/patient-record-service:latest', './patient-record-service.py']
+  # Step 1: Build Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
+      - '.'
 
-# Step 2: Push Docker Image to GCR
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/meditrack-healthsync/patient-record-service:latest']
+  # Step 2: Push Docker Image to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
 
-# Step 3: Deploy Updates to Kubernetes (Deployment YAML)
-- name: 'gcr.io/cloud-builders/kubectl'
-  args: ['apply', '-f', 'deployment.yaml']
-  env:
-  - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
-  - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
+  # Step 3: Deploy Updates to Kubernetes
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - 'apply'
+      - '-f'
+      - 'deployment.yaml'
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
-# Step 4: Deploy Service YAML
-- name: 'gcr.io/cloud-builders/kubectl'
-  args: ['apply', '-f', 'service.yaml']
-  env:
-  - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
-  - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - 'apply'
+      - '-f'
+      - 'service.yaml'
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
-# Step 5: Run Integration Tests
-- name: 'python'
-  entrypoint: 'pytest'
-  args: ['./tests']
+  # Step 4: Run Integration Tests
+  - name: 'python'
+    entrypoint: 'pytest'
+    args: ['./tests']
 
-# Step 6: Notify Success
-- name: 'gcr.io/cloud-builders/gcloud'
-  args: ['pubsub', 'topics', 'publish', 'ci-cd-status', '--message', 'CI/CD pipeline completed successfully.']
+  # Step 5: Notify Success
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'pubsub'
+      - 'topics'
+      - 'publish'
+      - 'ci-cd-status'
+      - '--message'
+      - 'CI/CD pipeline completed successfully.'
 
-# Define timeout if the pipeline takes longer
-timeout: '900s'
-
-# Specify logs bucket for avoiding the service account error
-options:
-  logging: CLOUD_LOGGING_ONLY
