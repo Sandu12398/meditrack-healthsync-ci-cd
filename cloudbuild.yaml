@@ -1,32 +1,30 @@
-# Cloud Build Configuration
-
-# Step 1: Set up Docker Authentication
-# This ensures Cloud Build is authenticated with GCR
 steps:
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - 'auth'
-      - 'configure-docker'
-    id: 'Authenticate Docker'
-
-  # Step 2: Build Docker Image
+  # Step 1: Build Docker Image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
-      - '.'
+      - 'gcr.io/meditrack-healthsync/meditrack-microservices:$BUILD_ID'  # Image name uses the project name 'meditrack-microservices'
+      - '.'  # The Dockerfile is in the current directory (~/meditrack-microservices)
     id: 'Build Docker Image'
-    timeout: '1200s'  # Timeout set to 20 minutes in case of large images
+    timeout: '1200s'  # Timeout set to 20 minutes for the Docker build
 
-  # Step 3: Push Docker Image to GCR
+  # Step 2: Push Docker Image to GCR
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/meditrack-healthsync/patient-record-service:$BUILD_ID'
+      - 'gcr.io/meditrack-healthsync/meditrack-microservices:$BUILD_ID'  # Same tag as in the build step
     id: 'Push Docker Image to GCR'
 
-  # Step 4: Deploy Updates to Kubernetes
+  # Step 3: Run Python Tests
+  - name: 'python'
+    entrypoint: 'pytest'
+    args:
+      - './tests'  # Run tests from the 'tests' directory
+    id: 'Run Tests'
+    timeout: '900s'  # Timeout set to 15 minutes for tests
+
+  # Step 4: Deploy to Kubernetes (Deployment)
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
       - 'apply'
@@ -37,6 +35,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
 
+  # Step 5: Deploy to Kubernetes (Service)
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
       - 'apply'
@@ -46,14 +45,6 @@ steps:
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
       - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
-
-  # Step 5: Run Integration Tests
-  - name: 'python'
-    entrypoint: 'pytest'
-    args:
-      - './tests'
-    id: 'Run Integration Tests'
-    timeout: '900s'  # Timeout set to 15 minutes for tests
 
   # Step 6: Notify Success
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -65,9 +56,8 @@ steps:
       - '--message'
       - 'CI/CD pipeline completed successfully.'
     id: 'Notify Success'
-  
+
 # Optional: Set a logs bucket for Cloud Build logs
-# This will ensure that build logs are stored in a bucket for easier access and troubleshooting
 options:
   logging: CLOUD_LOGGING_ONLY
 
